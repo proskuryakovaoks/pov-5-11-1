@@ -35,6 +35,15 @@ storage.init_db()
 
 app = FastAPI(title="Глина — чат-бот мастерской")
 
+
+@app.middleware("http")
+async def no_cache(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
 # В памяти: состояние диалога по session_id. Не содержит секретов.
 sessions: dict[str, dict] = {}
 

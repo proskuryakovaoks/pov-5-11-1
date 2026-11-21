@@ -72,6 +72,7 @@ function addDraft(draft) {
 
   messagesEl.appendChild(el);
   scrollDown();
+  el.scrollIntoView({ block: "end", behavior: "auto" });
 }
 
 function setQuickReplies(items) {
