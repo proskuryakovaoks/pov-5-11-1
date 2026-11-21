@@ -48,6 +48,11 @@ def _last_user_text(messages: list[dict]) -> str:
     return ""
 
 
+def _previous_user_text(messages: list[dict]) -> str:
+    texts = [m.get("content") or "" for m in messages if m.get("role") == "user"]
+    return texts[-2] if len(texts) >= 2 else ""
+
+
 def _last_tool_result(messages: list[dict]) -> dict | None:
     for m in reversed(messages):
         if m.get("role") == "tool":
@@ -178,12 +183,14 @@ async def chat_completions(request: Request) -> dict:
             return _completion(_message("По базе знаний: " + tool_result["content"][:400]))
         return _completion(_message("В базе знаний нет точного ответа. Могу помочь подобрать услугу и оформить заявку."))
 
-    # Пользователь ответил контактом после нашей просьбы — готовим черновик.
+    # Пользователь ответил контактом после нашей просьбы — готовим черновик,
+    # опираясь на предыдущий запрос (задачу), а не на сам контакт.
     if ASK_CONTACT_TEXT in last_assistant and not _is_lead(user_text):
         contact = _detect_contact(user_text)
         if contact == "не указан":
             contact = user_text.strip()
-        return _draft_tool_call(_detect_service(user_text), user_text, contact)
+        task_text = _previous_user_text(messages) or user_text
+        return _draft_tool_call(_detect_service(task_text), task_text, contact)
 
     # Запрос на заявку.
     if _is_lead(user_text):
