@@ -142,6 +142,16 @@ def read_knowledge_file(relative_path: str) -> dict[str, Any]:
     return {"file": resolved.name, "content": content}
 
 
+_PLACEHOLDERS = {
+    "", "не указан", "не указано", "не указана", "не указал",
+    "нет", "нет контакта", "none", "null", "n/a", "-",
+}
+
+
+def _is_missing(value: str | None) -> bool:
+    return (value or "").strip().lower() in _PLACEHOLDERS
+
+
 def prepare_lead_draft(
     session: dict[str, Any],
     service: str,
@@ -150,7 +160,30 @@ def prepare_lead_draft(
     summary: str,
     missing: str,
 ) -> dict[str, Any]:
-    """Сформировать черновик заявки (без сохранения)."""
+    """Сформировать черновик заявки (без сохранения).
+
+    Черновик не создаётся, пока нет обязательных данных (услуга, описание
+    задачи, контакт). Модель получает подсказку, что нужно уточнить у
+    пользователя, прежде чем готовить черновик.
+    """
+    missing_fields: list[str] = []
+    if _is_missing(service):
+        missing_fields.append("услуга")
+    if _is_missing(problem_text):
+        missing_fields.append("описание задачи")
+    if _is_missing(contact):
+        missing_fields.append("контакт")
+
+    if missing_fields:
+        return {
+            "status": "incomplete",
+            "message": (
+                "Черновик не создан: не хватает данных — "
+                + ", ".join(missing_fields)
+                + ". Уточни у пользователя недостающее и попроси его указать."
+            ),
+        }
+
     draft = {
         "service": (service or "").strip(),
         "problem_text": (problem_text or "").strip(),
@@ -170,7 +203,13 @@ def save_confirmed_lead(session: dict[str, Any]) -> dict[str, Any]:
     """Сохранить подтверждённый черновик в leads с source=ai_consultant."""
     draft = session.get("ai_draft")
     if not draft:
-        return {"error": "Нет черновика для сохранения."}
+        return {"status": "error", "message": "Нет черновика для сохранения."}
+
+    if _is_missing(draft.get("contact")):
+        return {
+            "status": "error",
+            "message": "Нельзя сохранить заявку без контакта. Укажите контакт и повторите.",
+        }
 
     lead_id = storage.save_lead(
         session_id=session["id"],

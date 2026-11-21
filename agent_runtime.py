@@ -152,13 +152,18 @@ class _UnavailableMessage:
 
 def confirm(session: dict[str, Any]) -> dict[str, Any]:
     result = tools.save_confirmed_lead(session)
-    session["mode"] = "menu"
     if result.get("status") == "saved":
+        session["mode"] = "menu"
         return {
             "reply": f"Заявка сохранена (№ {result['lead_id']}). Мы свяжемся с вами в ближайшее время.",
             "quick_replies": bot_flow.QUICK_MENU,
         }
-    return {"reply": "Не удалось сохранить заявку: черновик не найден.", "quick_replies": bot_flow.QUICK_MENU}
+    # Сохранить не удалось: остаёмся в консультации и объясняем причину.
+    session["mode"] = "ai"
+    return {
+        "reply": result.get("message") or "Не удалось сохранить заявку.",
+        "quick_replies": ["Назад в меню"],
+    }
 
 
 def edit(session: dict[str, Any]) -> dict[str, Any]:

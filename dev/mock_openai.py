@@ -58,6 +58,47 @@ def _last_tool_result(messages: list[dict]) -> dict | None:
     return None
 
 
+def _last_assistant_text(messages: list[dict]) -> str:
+    for m in reversed(messages):
+        if m.get("role") == "assistant" and m.get("content"):
+            return m["content"]
+    return ""
+
+
+ASK_CONTACT_TEXT = (
+    "Подскажите, пожалуйста, контакт для связи (телефон, email или Telegram) — "
+    "без него я не смогу подготовить черновик заявки."
+)
+
+
+def _draft_tool_call(service: str, problem_text: str, contact: str) -> dict:
+    return _completion(
+        _message(
+            None,
+            tool_calls=[
+                {
+                    "id": "call_draft",
+                    "type": "function",
+                    "function": {
+                        "name": "prepare_lead_draft",
+                        "arguments": json.dumps(
+                            {
+                                "service": service,
+                                "problem_text": problem_text,
+                                "contact": contact,
+                                "summary": problem_text,
+                                "missing": "ничего",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    },
+                }
+            ],
+        ),
+        finish_reason="tool_calls",
+    )
+
+
 LEAD_WORDS = ("заявк", "помоги", "хочу", "нужн", "оформ", "заказать")
 
 
@@ -119,6 +160,7 @@ async def chat_completions(request: Request) -> dict:
     messages: list[dict] = data.get("messages", [])
     user_text = _last_user_text(messages)
     tool_result = _last_tool_result(messages)
+    last_assistant = _last_assistant_text(messages)
 
     # Ответ после результата инструмента.
     if tool_result is not None:
@@ -126,6 +168,8 @@ async def chat_completions(request: Request) -> dict:
             return _completion(
                 _message("Вот черновик заявки. Проверьте данные и подтвердите, измените или отмените.")
             )
+        if tool_result.get("status") == "incomplete":
+            return _completion(_message(tool_result.get("message", "Уточните недостающие данные.")))
         if tool_result.get("found") is True:
             results = tool_result.get("results", [])
             snippet = results[0]["snippet"] if results else ""
@@ -134,35 +178,19 @@ async def chat_completions(request: Request) -> dict:
             return _completion(_message("По базе знаний: " + tool_result["content"][:400]))
         return _completion(_message("В базе знаний нет точного ответа. Могу помочь подобрать услугу и оформить заявку."))
 
+    # Пользователь ответил контактом после нашей просьбы — готовим черновик.
+    if ASK_CONTACT_TEXT in last_assistant and not _is_lead(user_text):
+        contact = _detect_contact(user_text)
+        if contact == "не указан":
+            contact = user_text.strip()
+        return _draft_tool_call(_detect_service(user_text), user_text, contact)
+
     # Запрос на заявку.
     if _is_lead(user_text):
-        service = _detect_service(user_text)
         contact = _detect_contact(user_text)
-        return _completion(
-            _message(
-                None,
-                tool_calls=[
-                    {
-                        "id": "call_draft",
-                        "type": "function",
-                        "function": {
-                            "name": "prepare_lead_draft",
-                            "arguments": json.dumps(
-                                {
-                                    "service": service,
-                                    "problem_text": user_text,
-                                    "contact": contact,
-                                    "summary": user_text,
-                                    "missing": "ничего",
-                                },
-                                ensure_ascii=False,
-                            ),
-                        },
-                    }
-                ],
-            ),
-            finish_reason="tool_calls",
-        )
+        if contact == "не указан":
+            return _completion(_message(ASK_CONTACT_TEXT))
+        return _draft_tool_call(_detect_service(user_text), user_text, contact)
 
     # Обычный вопрос — ищем в базе знаний через search_knowledge.
     query = _question_query(user_text)
