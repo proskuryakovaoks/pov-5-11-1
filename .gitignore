@@ -1,0 +1,16 @@
+# Секреты и локальное окружение
+.env
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Локальная база и логи
+data/
+logs/
+
+# Системные файлы macOS
+.DS_Store

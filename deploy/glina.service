@@ -1,0 +1,25 @@
+# Systemd unit для чат-бота «Глина» — один runtime.
+# Скопируйте в /etc/systemd/system/glina.service и поправьте пути/пользователя.
+#
+#   sudo cp deploy/glina.service /etc/systemd/system/glina.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now glina
+
+[Unit]
+Description=Glina chat-bot (FastAPI, один runtime)
+After=network.target
+
+[Service]
+Type=simple
+User=tplast
+WorkingDirectory=/home/tplast/glina
+ExecStart=/home/tplast/glina/.venv/bin/python /home/tplast/glina/app.py
+Restart=always
+RestartSec=3
+
+# Секреты берутся из .env в WorkingDirectory (load_dotenv), в логи не пишутся.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

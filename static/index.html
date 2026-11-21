@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Глина — чат мастерской</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="chat">
+    <header class="chat__header">
+      <div class="chat__logo">Г</div>
+      <div>
+        <div class="chat__title">Мастерская «Глина»</div>
+        <div class="chat__subtitle">керамика · декор · мебель</div>
+      </div>
+    </header>
+
+    <main id="messages" class="chat__messages" aria-live="polite"></main>
+
+    <div id="quickReplies" class="chat__quick"></div>
+
+    <form id="form" class="chat__form">
+      <input
+        id="input"
+        class="chat__input"
+        type="text"
+        placeholder="Напишите сообщение…"
+        autocomplete="off"
+      />
+      <button id="send" class="chat__send" type="submit">Отправить</button>
+    </form>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
