@@ -11,9 +11,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=tplast
-WorkingDirectory=/home/tplast/glina
-ExecStart=/home/tplast/glina/.venv/bin/python /home/tplast/glina/app.py
+User=tplast-direct
+WorkingDirectory=/home/tplast-direct/glina
+ExecStart=/home/tplast-direct/glina/.venv/bin/python /home/tplast-direct/glina/app.py
 Restart=always
 RestartSec=3
 
